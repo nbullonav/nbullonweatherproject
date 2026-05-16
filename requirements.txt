@@ -1,0 +1,5 @@
+pandas
+meteostat
+numpy
+datetime
+matplotlib
