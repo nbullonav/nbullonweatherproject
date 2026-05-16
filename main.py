@@ -25,5 +25,5 @@ whichfields = ['temp','tmin','tmax','prcp','pres','name','country','latitude','l
 # Define csv filename
 csvfile = 'station' + station_id + '.csv'
 
-df.to_csv(csvfile)
+finaldata.to_csv(csvfile)
 print(f"Guardado: {csvfile}")
