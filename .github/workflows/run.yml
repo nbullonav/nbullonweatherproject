@@ -1,5 +1,4 @@
 name: Meteostat Runner
-
 on:
   workflow_dispatch:
 
