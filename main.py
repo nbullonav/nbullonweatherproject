@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from meteostat import daily, monthly, Point, stations
 
-station_id = sys.argv[1]
+station_id = os.environ["STATION_ID"]
 
 start = datetime(1980, 1, 1)
 end = datetime(2024, 12, 31)
