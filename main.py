@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 from datetime import datetime
 from meteostat import daily, monthly, Point, stations
 
