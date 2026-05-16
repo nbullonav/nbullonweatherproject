@@ -64,6 +64,7 @@ df_icen['time'] = df_icen['YR'].astype(str) + '-' + df_icen['MON'].astype(str)
 df_icen['time'] = pd.to_datetime(df_icen['time'], format='%Y-%m')
 df_icen.set_index('time', inplace=True)
 
+df_final = pd.merge(finaldata, df_sst_final, on="time", how='inner')
 
 ## salvar en .csv
 whichfields = ['temp','tmin','tmax','prcp','pres','name','country','latitude','longitude']
