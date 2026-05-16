@@ -3,3 +3,7 @@ meteostat==2.1.4
 numpy
 datetime
 matplotlib
+utilsforecast
+statsforecast
+fpppy
+xgboost
