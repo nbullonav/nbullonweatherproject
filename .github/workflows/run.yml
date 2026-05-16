@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      max-parallel: 1
       matrix:
         station: ["84370","84401", "84501", "84593"]
 
@@ -41,4 +42,5 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git add data/
           git commit -m "Add CSV for station ${{ matrix.station }}"
+          git pull --rebase origin main
           git push
