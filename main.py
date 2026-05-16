@@ -64,12 +64,12 @@ df_icen['time'] = df_icen['YR'].astype(str) + '-' + df_icen['MON'].astype(str)
 df_icen['time'] = pd.to_datetime(df_icen['time'], format='%Y-%m')
 df_icen.set_index('time', inplace=True)
 
-df_final = pd.merge(finaldata, df_sst_final, on="time", how='inner')
+df_final = finaldata.join(df_sst_final, df_icen, how='outer')
 
 ## salvar en .csv
 whichfields = ['temp','tmin','tmax','prcp','pres','name','country','latitude','longitude']
 # Define csv filename
 csvfile = 'station' + station_id + '.csv'
 
-finaldata.to_csv(csvfile)
+df_final.to_csv(csvfile)
 print(f"Guardado: {csvfile}")
