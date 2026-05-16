@@ -26,3 +26,16 @@ jobs:
         with:
           name: station-${{ matrix.station }}
           path: station${{ matrix.station }}.csv
+
+      - name: Move CSV to data folder
+        run: |
+          mkdir -p data
+          mv station${{ matrix.station }}.csv data/
+
+      - name: Commit CSV to repo
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add data/
+          git commit -m "Add CSV for station ${{ matrix.station }}"
+          git push
