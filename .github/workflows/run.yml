@@ -20,3 +20,9 @@ jobs:
         env:
           STATION_ID: ${{ matrix.station }}
         run: python main.py
+        
+      - name: Upload CSV artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: data-${{ matrix.station }}
+          path: data_${{ matrix.station }}.csv
