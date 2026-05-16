@@ -1,0 +1,254 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sb
+# Cargar Librerias para tratamiento de datos
+import missingno as mno
+import random
+import os
+from math import sqrt
+from datetime import datetime
+from statsforecast import StatsForecast
+from statsforecast.models import AutoARIMA
+from statsmodels.tsa.arima.model import ARIMA
+from statsforecast.arima import ARIMASummary
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from xgboost import XGBRegressor
+import statsmodels.api as sm
+import statsmodels.api as sm
+import os
+
+station_id = "45405"
+csv_path = f"data/station{station_id}.csv"
+
+df = pd.read_csv(csv_path, parse_dates=["time"])
+df = df.set_index("time").sort_index()
+df["log_prcp"] = np.log1p(df["prcp"])
+
+# ================== 2. Lags (OK antes del split) ==================
+for k in [1,2,3,6,12,18,24]:
+    df[f"prcp_lag{k}"] = df["log_prcp"].shift(k)
+
+for k in range(1,13):
+    df[f"ANOM_lag{k}"] = df["ANOM"].shift(k)
+
+# ================== 3. Dummies de mes ==================
+df["month"] = df.index.month
+df = pd.get_dummies(df, columns=["month"], prefix="month", drop_first=False)
+
+for m in range(1, 13):
+    col = f"month_{m}"
+    if col not in df.columns:
+        df[col] = 0
+
+# ================== 4. Split base ==================
+split_idx = int(len(df) * 0.8)
+df_train = df.iloc[:split_idx].copy()   # 1982-2017 (428)
+df_test  = df.iloc[split_idx:].copy()   # 2017-2026 (107)
+
+def add_rollings_precenso(d):
+    d["prcp_roll3"]  = d["log_prcp"].rolling(3).mean()
+    d["prcp_roll6"]  = d["log_prcp"].rolling(6).mean()
+    d["prcp_roll12"] = d["log_prcp"].rolling(12).mean()
+
+    d["prcp_std6"]   = d["log_prcp"].rolling(6).std()
+    d["prcp_std12"]  = d["log_prcp"].rolling(12).std()
+
+    d["prcp_max12"]  = d["log_prcp"].rolling(12).max()
+    d["prcp_min12"]  = d["log_prcp"].rolling(12).min()
+
+    d["enso_roll3"]  = d["ANOM"].rolling(3).mean()
+    d["enso_roll6"]  = d["ANOM"].rolling(6).mean()
+
+def add_rollings_pres(d):
+    d["pres_roll3"]  = d["pres"].rolling(3).mean()
+    d["pres_roll6"]  = d["pres"].rolling(6).mean()
+    d["pres_roll12"] = d["pres"].rolling(12).mean()
+
+    d["pres_std6"]   = d["pres"].rolling(6).std()
+    d["pres_std12"]  = d["pres"].rolling(12).std()
+
+    d["pres_min12"]  = d["pres"].rolling(12).min()
+    d["pres_max12"]  = d["pres"].rolling(12).max()
+
+add_rollings_precenso(df_train)
+add_rollings_precenso(df_test)
+
+df_train_pres = df_train.copy()
+df_test_pres  = df_test.copy()
+add_rollings_pres(df_train_pres)
+add_rollings_pres(df_test_pres)
+
+# ================== 6. Concatenar ==================
+df_model = pd.concat([df_train, df_test])
+df_model_pres = pd.concat([df_train_pres, df_test_pres])
+
+# ================== 7. Definir grupos de columnas ==================
+lag_features = (
+    [f"prcp_lag{k}" for k in [1,2,3,6,12,18,24]] +
+    [f"ANOM_lag{k}" for k in range(1,13)]
+)
+
+rolling_features = [
+    "prcp_roll3", "prcp_roll6", "prcp_roll12","prcp_std6", "prcp_std12",
+    "prcp_max12", "prcp_min12", "enso_roll3", "enso_roll6"
+]
+
+rolling_features_pres = [
+    "prcp_roll3", "prcp_roll6", "prcp_roll12","prcp_std6", "prcp_std12",
+    "prcp_max12", "prcp_min12", "enso_roll3", "enso_roll6",
+    "pres_roll3", "pres_roll6", "pres_roll12",
+    "pres_std6", "pres_std12", "pres_min12", "pres_max12"
+]
+
+month_features = [col for col in df.columns if col.startswith("month_")]
+
+feature_cols = lag_features + rolling_features + month_features
+feature_cols_pres = lag_features + rolling_features_pres + month_features
+
+exog_sarimax = ["ANOM"]
+exog_sarimax_pres = ["pres","ANOM"]
+
+# ================== 8. Armar df_model limpio (XGB) ==================
+df_model = df_model = df_model[["log_prcp", "ANOM"] + feature_cols].dropna()
+df_model_pres = df_model_pres[["log_prcp", "ANOM", "pres"] + feature_cols_pres].dropna()
+
+# agregar nuevo split_idx basado en df_model ya sin NaN
+split_idx = int(len(df_model) * 0.8)
+
+y = df_model["log_prcp"]
+X_xgb      = df_model[feature_cols]
+X_xgb_pres = df_model_pres[feature_cols_pres]
+
+y_train = y.iloc[:split_idx]
+y_test  = y.iloc[split_idx:]
+
+true_train = np.expm1(y_train)
+true_test  = np.expm1(y_test)
+
+X_train = X_xgb.iloc[:split_idx]
+X_test = X_xgb.iloc[split_idx:]
+X_train_pres = X_xgb_pres.iloc[:split_idx]
+X_test_pres = X_xgb_pres.iloc[split_idx:]
+
+# ================== 9. Exógenas para SARIMAX ==================
+exog_train = df_model[exog_sarimax].iloc[:split_idx]   # sarimax 1 var. exógena
+exog_test  = df_model[exog_sarimax].iloc[split_idx:]
+exog_train_pres = df_model_pres[exog_sarimax_pres].iloc[:split_idx]   # sarimax 2 var. exógenas
+exog_test_pres  = df_model_pres[exog_sarimax_pres].iloc[split_idx:]
+
+# ---------------------------------
+# ----- Funciones auxiliares ------
+# ---------------------------------
+def rmse(y_true, y_pred):
+    return sqrt(mean_squared_error(y_true, y_pred))
+
+def mae(y_true, y_pred):
+    return mean_absolute_error(y_true, y_pred)
+
+# array de resultados
+resultados = []
+
+####### MODELO GANADOR #######
+import statsmodels.api as sm
+
+exog_sarimax = ["ANOM", "ANOM_lag1", "ANOM_lag2", "ANOM_lag3"]
+df_sarimax = df_model[["log_prcp"] + exog_sarimax].dropna()
+
+split_idx_sarimax = int(len(df_sarimax) * 0.8)
+
+y_sarimax = df_sarimax["log_prcp"]
+exog_sarimax_full = df_sarimax[exog_sarimax]
+
+y_train_sarimax = y_sarimax.iloc[:split_idx_sarimax]
+y_test_sarimax  = y_sarimax.iloc[split_idx_sarimax:]
+
+exog_train_sarimax = exog_sarimax_full.iloc[:split_idx_sarimax]
+exog_test_sarimax  = exog_sarimax_full.iloc[split_idx_sarimax:]
+
+hybrid2_model = sm.tsa.statespace.SARIMAX(
+    y_train_sarimax,
+    exog=exog_train_sarimax,
+    order=(1,1,1),
+    seasonal_order=(1,1,1,12),
+    enforce_stationarity=False,
+    enforce_invertibility=False
+).fit(disp=False)
+
+sarimaxhybrid2_train_pred = hybrid2_model.predict(start=y_train.index[0], end=y_train.index[-1], exog=exog_train_sarimax)
+
+start = len(y_train)
+end = len(y_train) + len(y_test) - 1
+
+sarimaxhybrid2_test_pred = hybrid2_model.predict(start=start, end=end, exog=exog_test_sarimax)
+
+residuals_train = y_train - sarimaxhybrid_train_pred
+
+sarimax_train_real = np.expm1(sarimaxhybrid2_train_pred)
+sarimax_test_real  = np.expm1(sarimaxhybrid2_test_pred)
+
+true_train_sarimax = np.expm1(y_train_sarimax)
+true_test_sarimax  = np.expm1(y_test_sarimax)
+
+rmse_sarimax = rmse(true_test_sarimax, sarimax_test_real)
+mae_sarimax  = mae(true_test_sarimax, sarimax_test_real)
+
+resultados.append({
+    "modelo": "SARIMAX (1,0,1) (1,0,1,12) ENSO rezagado",
+    "RMSE": rmse_sarimax,
+    "MAE": mae_sarimax
+})
+
+# XGBOOST
+from sklearn.model_selection import TimeSeriesSplit
+
+tscv = TimeSeriesSplit(n_splits=5)
+
+X = np.arange(len(y_train) + len(y_test))  # solo para visualizar posiciones
+plt.figure(figsize=(12, 6))
+
+for i, (train_idx, test_idx) in enumerate(tscv.split(X)):
+    plt.plot(train_idx, [i]*len(train_idx), color="blue", marker="|", markersize=12, linestyle="None")
+    plt.plot(test_idx,  [i]*len(test_idx),  color="orange", marker="|", markersize=12, linestyle="None")
+
+plt.yticks(range(5), [f"Split {i+1}" for i in range(5)])
+plt.xlabel("Índice temporal")
+plt.title("Visualización de TimeSeriesSplit (n_splits=5)")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+param_grid = {
+    "n_estimators": [200, 300, 400, 500],
+    "max_depth": [2, 3, 4, 5],
+    "learning_rate": [0.01, 0.03, 0.05, 0.1],
+    "subsample": [0.6, 0.8, 1.0],
+    "colsample_bytree": [0.6, 0.8, 1.0],
+    "gamma": [0, 1, 5],
+    "min_child_weight": [1, 3, 5],
+}
+xgb_model = XGBRegressor(objective="reg:squarederror", random_state=randomstate)
+
+search = RandomizedSearchCV(
+    estimator=xgb_model,
+    param_distributions=param_grid,
+    n_iter=40,
+    scoring="neg_mean_squared_error",
+    cv=tscv,
+    verbose=1,
+    n_jobs=-1
+)
+
+search.fit(X_train.to_numpy(), residuals_train.to_numpy())
+best_xgb = search.best_estimator_
+
+xgb_train_pred = best_xgb.predict(X_train)
+xgb_test_pred  = best_xgb.predict(X_test)
+
+xgb_train_real = np.expm1(xgb_train_pred)
+xgb_test_real  = np.expm1(xgb_test_pred)
+
+hybrid2_train = true_train_sarimax + xgb_train_real
+hybrid2_test  = true_test_sarimax  + xgb_test_real
