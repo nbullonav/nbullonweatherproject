@@ -18,10 +18,42 @@ data['id'] = str(station_id)
 data.reset_index(inplace=True)
 
 finaldata = pd.merge(data,df_metadata, how='left', on='id')
-finaldata.drop(columns=['id','identifiers','timezone'], inplace=True)
+finaldata.drop(columns=['id','elevation','identifiers','timezone'], inplace=True)
 finaldata.set_index('time', inplace=True)
 
-whichfields = ['temp','tmin','tmax','prcp','pres','name','country','latitude','longitude','elevation']
+
+#### EDA
+## PRCP
+max_prcp = finaldata['prcp'].quantile(0.999)
+max_prcp
+min_prcp = finaldata['prcp'].quantile(0.001)
+min_prcp
+df2 = finaldata[finaldata['prcp'] > min_prcp]
+prcp_avg = df2['prcp'].mean().round(2)
+finaldata.loc[finaldata['prcp'].isna(), 'prcp'] = prcp_avg
+## TEMP
+max_Temp = finaldata['temp'].quantile(0.999)
+max_Temp
+min_Temp = finaldata['temp'].quantile(0.001)
+min_Temp
+df2 = finaldata[finaldata['temp'] > min_Temp]
+Temp_avg = df2['temp'].mean().round(2)
+finaldata.loc[finaldata['temp'].isna(), 'temp'] = Temp_avg
+## PRES
+max_pres = finaldata['pres'].quantile(0.999)
+max_pres
+min_pres = finaldata['pres'].quantile(0.001)
+min_pres
+df2 = finaldata[finaldata['pres'] > min_pres]
+pres_avg = df2['pres'].mean().round(2)
+finaldata.loc[finaldata['pres'].isna(), 'pres'] = pres_avg
+
+
+
+
+
+## salvar en .csv
+whichfields = ['temp','tmin','tmax','prcp','pres','name','country','latitude','longitude']
 # Define csv filename
 csvfile = 'station' + station_id + '.csv'
 
