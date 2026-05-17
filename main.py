@@ -6,7 +6,7 @@ from meteostat import daily, monthly, Point, stations
 station_id = os.environ["STATION_ID"]
 
 start = datetime(1980, 1, 1)
-end = datetime(2024, 12, 31)
+end = datetime(2026, 3, 31)
 
 metadata_sta = stations.meta(station_id)
 df_metadata = pd.DataFrame([metadata_sta])
@@ -56,16 +56,21 @@ df_sst = pd.read_csv("https://www.cpc.ncep.noaa.gov/data/indices/ersst5.nino.mth
                      names=["YR", "MON", "NINO12","NINO12ANOM", "NINO3","NINO3ANOM", "NINO4","NINO4ANOM", "NINO34","NINO34ANOM"], header=0)
 df_sst_final = df_sst[['YR','MON','NINO12',"NINO12ANOM","NINO34","NINO34ANOM"]]
 df_sst_final['time'] = df_sst_final['YR'].astype(str) + '-' + df_sst_final['MON'].astype(str)
+df_sst_final = df_sst_final[df_sst_final['time']>= "1980-01-01"]
 df_sst_final['time'] = pd.to_datetime(df_sst_final['time'], format='%Y-%m')
 df_sst_final.set_index('time', inplace=True)
 
 df_icen = pd.read_csv("http://met.igp.gob.pe/datos/ICEN.txt", sep=r"\s+", skiprows=5 ,header=None,names=["YR","MON","ICEN"])
 df_icen['time'] = df_icen['YR'].astype(str) + '-' + df_icen['MON'].astype(str)
+df_icen = df_icen[df_icen['time']>= "1980-01-01"]
 df_icen['time'] = pd.to_datetime(df_icen['time'], format='%Y-%m')
 df_icen.set_index('time', inplace=True)
 
-df_final = finaldata.join(df_sst_final, df_icen, how='outer')
-
+df_final = (
+    finaldata
+    .merge(df_sst_final, on="time", how="outer")
+    .merge(df_icen, on="time", how="outer")
+    )
 ## salvar en .csv
 whichfields = ['temp','tmin','tmax','prcp','pres','name','country','latitude','longitude']
 # Define csv filename
