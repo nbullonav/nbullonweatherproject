@@ -59,12 +59,14 @@ df_sst_final['time'] = df_sst_final['YR'].astype(str) + '-' + df_sst_final['MON'
 df_sst_final = df_sst_final[df_sst_final['time']>= "1980-01-01"]
 df_sst_final['time'] = pd.to_datetime(df_sst_final['time'], format='%Y-%m')
 df_sst_final.set_index('time', inplace=True)
+df_sst_final.drop(columns=['YR','MON'], inplace=True)
 
 df_icen = pd.read_csv("http://met.igp.gob.pe/datos/ICEN.txt", sep=r"\s+", skiprows=5 ,header=None,names=["YR","MON","ICEN"])
 df_icen['time'] = df_icen['YR'].astype(str) + '-' + df_icen['MON'].astype(str)
 df_icen = df_icen[df_icen['time']>= "1980-01-01"]
 df_icen['time'] = pd.to_datetime(df_icen['time'], format='%Y-%m')
 df_icen.set_index('time', inplace=True)
+df_icen.drop(columns=['YR','MON'], inplace=True)
 
 df_final = (
     finaldata
