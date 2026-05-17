@@ -77,4 +77,4 @@ whichfields = ['temp','tmin','tmax','prcp','pres','name','country','latitude','l
 csvfile = 'station' + station_id + '.csv'
 
 df_final.to_csv(csvfile)
-print(f"Guardado: {csvfile}")
+#print(f"Guardado: {csvfile}")
