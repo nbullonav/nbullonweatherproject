@@ -73,10 +73,28 @@ df_final = (
     .merge(df_sst_final, on="time", how="outer")
     .merge(df_icen, on="time", how="outer")
     )
+
+currentdate = datetime.now()
+currentdate = currentdate.strftime("%Y-%m-%d")
+datecheck = datetime.strptime(currentdate, "%Y-%m-%d") - pd.DateOffset(months=3)
+datecheck = datecheck.strftime("%Y-%m-%d")
+
+critical_cols = [
+    "temp","tmin","tmax","txmn","txmx","prcp","pres",
+    "name","country","region","latitude","longitude"
+]
+df_recent = df_final[df_final.index >= datecheck]
+df_recent_clean = df_recent.dropna(subset=critical_cols)
+
+df_finalcleaned = pd.concat([
+    df_final[df_final.index < datecheck],   # histórico intacto
+    df_recent_clean                         # reciente limpio
+])
+
 ## salvar en .csv
 whichfields = ['temp','tmin','tmax','prcp','pres','name','country','latitude','longitude']
 # Define csv filename
 csvfile = 'station' + station_id + '.csv'
 
-df_final.to_csv(csvfile)
+df_finalcleaned.to_csv(csvfile)
 #print(f"Guardado: {csvfile}")
