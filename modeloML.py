@@ -216,7 +216,7 @@ xgb_test_real  = np.expm1(xgb_test_pred)
 hybrid2_train = true_train_sarimax + xgb_train_real
 hybrid2_test  = true_test_sarimax  + xgb_test_real
 
-
+print("Prediccion futura")
 # Prediccion futura
 
 # ================================
