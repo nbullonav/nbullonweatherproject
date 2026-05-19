@@ -329,8 +329,8 @@ hybrid_test  = sarimax_test_real  + xgb_test_real
 # metricas RMSE & MAE
 resultados.append({
     "modelo": "Híbrido (SARIMAX + XGB)",
-    "RMSE": rmse(true_test_sarimax, hybrid2_test),
-    "MAE": mae(true_test_sarimax, hybrid2_test)
+    "RMSE": rmse(true_test_sarimax, hybrid_test),
+    "MAE": mae(true_test_sarimax, hybrid_test)
 })
 
 dhistoric = y.to_frame("historic").reset_index().rename(columns={"index": "time"})
@@ -345,6 +345,17 @@ df_final = (
     .merge(dhybrid, on="time", how="outer")
     .sort_values("time")
 )
-
 csvfilefinal = "data/pred_" + station_id + ".csv"
 df_final.to_csv(csvfilefinal, index=False)
+
+test_df = pd.DataFrame({
+    "time": true_test_sarimax.index,
+    "real": true_test_sarimax.values,
+    "sarimax": sarimax_test_pred_series.values,
+    "xgb": xgb_test_pred_series.values,
+    "hybrid": hybrid_test.values
+})
+
+test_df.set_index("time", inplace=True)
+csvfiletest = "data/test_" + station_id + ".csv"
+test_df.to_csv(csvfiletest)
