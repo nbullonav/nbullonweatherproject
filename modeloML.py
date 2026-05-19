@@ -68,7 +68,6 @@ df_test_pres  = df_test.copy()
 # ================== 6. Concatenar ==================
 df_model = pd.concat([df_train, df_test])
 
-
 # ================== 7. Definir grupos de columnas ==================
 lag_features = (
     [f"prcp_lag{k}" for k in [1,2,3,6,12]] +
@@ -176,7 +175,7 @@ resultados.append({
     "MAE": mae_sarimax
 })
 
-
+print("sección XGBOOST")
 # XGBOOST
 randomstate = 42
 tscv = TimeSeriesSplit(n_splits=5)
