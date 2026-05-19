@@ -128,7 +128,7 @@ resultados = []
 ####### MODELO GANADOR #######
 import statsmodels.api as sm
 
-exog_sarimax = ["ANOM", "ANOM_lag1", "ANOM_lag2", "ANOM_lag3"]
+exog_sarimax = ['NINO34ANOM',"ANOM34_lag1"]
 df_sarimax = df_model[["log_prcp"] + exog_sarimax].dropna()
 
 split_idx_sarimax = int(len(df_sarimax) * 0.8)
@@ -142,10 +142,10 @@ y_test_sarimax  = y_sarimax.iloc[split_idx_sarimax:]
 exog_train_sarimax = exog_sarimax_full.iloc[:split_idx_sarimax]
 exog_test_sarimax  = exog_sarimax_full.iloc[split_idx_sarimax:]
 
-hybrid2_model = sm.tsa.statespace.SARIMAX(
+sarimax_model = sm.tsa.statespace.SARIMAX(
     y_train_sarimax,
     exog=exog_train_sarimax,
-    order=(1,1,1),
+    order=(2,0,2),
     seasonal_order=(1,1,1,12),
     enforce_stationarity=False,
     enforce_invertibility=False
@@ -156,12 +156,18 @@ sarimaxhybrid2_train_pred = hybrid2_model.predict(start=y_train.index[0], end=y_
 start = len(y_train)
 end = len(y_train) + len(y_test) - 1
 
-sarimaxhybrid2_test_pred = hybrid2_model.predict(start=start, end=end, exog=exog_test_sarimax)
+sarimax_train_pred = sarimax_model.predict(start=y_train.index[0], end=y_train.index[-1], exog=exog_train_sarimax)
 
-residuals_train = y_train - sarimaxhybrid_train_pred
+start = len(y_train)
+end = len(y_train) + len(y_test) - 1
 
-sarimax_train_real = np.expm1(sarimaxhybrid2_train_pred)
-sarimax_test_real  = np.expm1(sarimaxhybrid2_test_pred)
+sarimax_test_pred = sarimax_model.predict(start=start, end=end, exog=exog_test_sarimax)
+sarimax_test_pred_series = pd.Series(sarimax_test_pred.values, index=y_test.index)
+
+residuals_train = y_train - sarimax_train_pred
+
+sarimax_train_real = np.expm1(sarimax_train_pred)
+sarimax_test_real  = np.expm1(sarimax_test_pred)
 
 true_train_sarimax = np.expm1(y_train_sarimax)
 true_test_sarimax  = np.expm1(y_test_sarimax)
@@ -170,14 +176,13 @@ rmse_sarimax = rmse(true_test_sarimax, sarimax_test_real)
 mae_sarimax  = mae(true_test_sarimax, sarimax_test_real)
 
 resultados.append({
-    "modelo": "SARIMAX (1,0,1) (1,0,1,12) ENSO rezagado",
+    "modelo": "SARIMAX (1,1,1) (1,1,1,12) ENSO rezagado",
     "RMSE": rmse_sarimax,
     "MAE": mae_sarimax
 })
 
-# XGBOOST
-from sklearn.model_selection import TimeSeriesSplit
 
+# XGBOOST
 tscv = TimeSeriesSplit(n_splits=5)
 
 X = np.arange(len(y_train) + len(y_test))  # solo para visualizar posiciones
