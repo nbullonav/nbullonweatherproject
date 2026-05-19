@@ -32,7 +32,7 @@ jobs:
         env:
           STATION_ID: ${{ matrix.station }}
         run: |
-          python scripts/generate_test.py
+          python scripts/modeloML.py
 
       - name: Upload forecast artifact
         uses: actions/upload-artifact@v3
