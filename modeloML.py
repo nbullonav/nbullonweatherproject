@@ -288,10 +288,6 @@ df_ext["ICEN_roll3"] = df_ext["ICEN"].rolling(3).mean()
 exog_sarimax = ["ICEN_lag1","NINO34ANOM"]
 exog_future = df_ext.loc[future_index, exog_sarimax].fillna(0)
 
-# hibrid #1
-#exog_sarimax = list(exog_train.columns)
-#exog_future = df_ext.loc[future_index, exog_sarimax].fillna(0)
-
 # ================================
 # 6. Seleccionar features XGB
 # ================================
@@ -305,13 +301,13 @@ end   = sarimax_model.nobs + H - 1
 
 sarimax2_forecast = sarimax_model.predict(start=start, end=end, exog=exog_future)
 sarimax2_forecast = np.array(sarimax2_forecast)
-sarimax2_future_series = pd.Series(sarimax2_forecast, index=future_index)
+sarimax2_future_series = pd.Series(sarimax2_forecast, index=future_index, name="sarimax forecast")
 
 # ================================
 # 8. Forecast XGB futuro
 # ================================
 xgb_future_pred = best_xgb.predict(X_future.to_numpy())
-xgb_future_series = pd.Series(xgb_future_pred, index=future_index)
+xgb_future_series = pd.Series(xgb_future_pred, index=future_index, name="xgb forecast")
 
 # ================================
 # 9. Modelo híbrido
