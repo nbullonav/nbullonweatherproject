@@ -1,0 +1,31 @@
+name: Generate ML Model
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        station: ["84370", "84401", "84501"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run test generation script
+        env:
+          STATION_ID: ${{ matrix.station }}
+        run: |
+          python scripts/generate_test.py
