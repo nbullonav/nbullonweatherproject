@@ -28,7 +28,7 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Run test generation script
+      - name: Run model script (forecast + test)
         env:
           STATION_ID: ${{ matrix.station }}
         run: |
