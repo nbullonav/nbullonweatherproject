@@ -35,13 +35,13 @@ jobs:
           python scripts/modeloML.py
 
       - name: Upload forecast artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pred_${{ matrix.station }}
           path: data/pred_${{ matrix.station }}.csv
 
       - name: Upload test artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test_${{ matrix.station }}
           path: data/test_${{ matrix.station }}.csv
