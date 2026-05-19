@@ -82,8 +82,11 @@ critical_cols = [
     "temp","tmin","tmax","txmn","txmx","prcp","pres",
     "name","country","region","latitude","longitude"
 ]
+critical_cols_2 = ["ICEN"]
+
 df_recent = df_final[df_final.index >= datecheck]
 df_recent_clean = df_recent.dropna(subset=critical_cols)
+df_recent_clean = df_recent.dropna(subset=critical_cols_2)
 
 df_finalcleaned = pd.concat([
     df_final[df_final.index < datecheck],   # histórico intacto
