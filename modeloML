@@ -183,21 +183,8 @@ resultados.append({
 
 
 # XGBOOST
+randomstate = 42
 tscv = TimeSeriesSplit(n_splits=5)
-
-X = np.arange(len(y_train) + len(y_test))  # solo para visualizar posiciones
-plt.figure(figsize=(12, 6))
-
-for i, (train_idx, test_idx) in enumerate(tscv.split(X)):
-    plt.plot(train_idx, [i]*len(train_idx), color="blue", marker="|", markersize=12, linestyle="None")
-    plt.plot(test_idx,  [i]*len(test_idx),  color="orange", marker="|", markersize=12, linestyle="None")
-
-plt.yticks(range(5), [f"Split {i+1}" for i in range(5)])
-plt.xlabel("Índice temporal")
-plt.title("Visualización de TimeSeriesSplit (n_splits=5)")
-plt.grid(True)
-plt.tight_layout()
-plt.show()
 
 param_grid = {
     "n_estimators": [200, 300, 400, 500],
@@ -208,6 +195,7 @@ param_grid = {
     "gamma": [0, 1, 5],
     "min_child_weight": [1, 3, 5],
 }
+
 xgb_model = XGBRegressor(objective="reg:squarederror", random_state=randomstate)
 
 search = RandomizedSearchCV(
@@ -223,11 +211,124 @@ search = RandomizedSearchCV(
 search.fit(X_train.to_numpy(), residuals_train.to_numpy())
 best_xgb = search.best_estimator_
 
+
 xgb_train_pred = best_xgb.predict(X_train)
 xgb_test_pred  = best_xgb.predict(X_test)
+xgb_test_pred_series = pd.Series(xgb_test_pred, index=X_test.index)
 
 xgb_train_real = np.expm1(xgb_train_pred)
 xgb_test_real  = np.expm1(xgb_test_pred)
 
 hybrid2_train = true_train_sarimax + xgb_train_real
 hybrid2_test  = true_test_sarimax  + xgb_test_real
+
+
+# Prediccion futura
+
+# ================================
+# 1. Crear df_future base
+# ================================
+H = 12
+
+future_index = pd.date_range(
+    start=df_model.index[-1] + pd.offsets.MonthBegin(1),
+    periods=H,
+    freq="MS"
+)
+
+df_future = pd.DataFrame(index=future_index)
+
+# ENSO futuro
+
+# ejemplo Niño moderado
+#df_future["ANOM"] = [0.10, 0.23, 0.9, 1.1, 1.2, 1.0, 0.8, 0.6, 0.4, 0.3, 0.2, 0.1]
+# ejemplo nino fuerte
+df_future["NINO34ANOM"] = [0.10, 0.23, 1.4, 1.7, 1.9, 1.8, 1.6, 1.3, 1.0, 0.8, 0.6, 0.4]
+# ejemplo nina moderada
+# df_future["ANOM"] = [0.1, 0.0, -0.2, -0.4, -0.6, -0.8, -1.0, -1.1, -1.0, -0.8, -0.6, -0.4]
+
+# ================================
+# 2. Extender df original
+# ================================
+df_ext = pd.concat([df, df_future], axis=0)
+
+# ================================
+# 3. Month dummies X   month_sin y month_cos
+# ================================
+# ================== 3. Dummies de mes ==================
+df_ext["month"] = df_ext.index.month
+df_ext["month_sin"] = np.sin(2 * np.pi * df_ext["month"] / 12)
+df_ext["month_cos"] = np.cos(2 * np.pi * df_ext["month"] / 12)
+
+# ================================
+# 4. Regenerar TODAS las features en df_ext
+# ================================
+
+# Lags prcp
+for k in [1,2,3,6,12]:
+    df_ext[f"prcp_lag{k}"] = df_ext["log_prcp"].shift(k)
+
+# Lags ENSO
+for k in range(1,13):
+    df_ext[f"ANOM34_lag{k}"] = df_ext["NINO34ANOM"].shift(k)
+
+for k in [1,3]:
+    df_ext[f"ICEN_lag{k}"] = df_ext["ICEN"].shift(k)
+
+# Rolling prcp
+df_ext["prcp_roll3"]  = df_ext["log_prcp"].rolling(3).mean()
+df_ext["prcp_roll6"]  = df_ext["log_prcp"].rolling(6).mean()
+df_ext["prcp_roll12"] = df_ext["log_prcp"].rolling(12).mean()
+
+df_ext["prcp_std6"]   = df_ext["log_prcp"].rolling(6).std()
+
+# Rolling ENSO
+df_ext["enso34_roll3"] = df_ext["NINO34ANOM"].rolling(3).mean()
+df_ext["ICEN_roll3"] = df_ext["ICEN"].rolling(3).mean()
+
+# ================================
+# 5. Seleccionar exógenas SARIMAX
+# ================================
+
+exog_sarimax = ["ICEN_lag1","NINO34ANOM"]
+exog_future = df_ext.loc[future_index, exog_sarimax].fillna(0)
+
+# hibrid #1
+#exog_sarimax = list(exog_train.columns)
+#exog_future = df_ext.loc[future_index, exog_sarimax].fillna(0)
+
+# ================================
+# 6. Seleccionar features XGB
+# ================================
+X_future = df_ext.loc[future_index, X_train.columns].fillna(0)
+
+# ================================
+# 7. Forecast SARIMAX
+# ================================
+start = sarimax_model.nobs
+end   = sarimax_model.nobs + H - 1
+
+sarimax2_forecast = sarimax_model.predict(start=start, end=end, exog=exog_future)
+sarimax2_forecast = np.array(sarimax2_forecast)
+sarimax2_future_series = pd.Series(sarimax2_forecast, index=future_index)
+
+# ================================
+# 8. Forecast XGB futuro
+# ================================
+xgb_future_pred = best_xgb.predict(X_future.to_numpy())
+xgb_future_series = pd.Series(xgb_future_pred, index=future_index)
+
+# ================================
+# 9. Modelo híbrido
+# ================================
+hybrid_future_series = sarimax2_future_series + xgb_future_series
+
+hybrid_train = sarimax_train_real + xgb_train_real
+hybrid_test  = sarimax_test_real  + xgb_test_real
+
+# metricas RMSE & MAE
+resultados.append({
+    "modelo": "Híbrido (SARIMAX + XGB)",
+    "RMSE": rmse(true_test_sarimax, hybrid2_test),
+    "MAE": mae(true_test_sarimax, hybrid2_test)
+})
