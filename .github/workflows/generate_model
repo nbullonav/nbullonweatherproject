@@ -3,11 +3,15 @@ name: Generate ML Model
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   run-test:
     runs-on: ubuntu-latest
 
     strategy:
+      max-parallel: 1
       matrix:
         station: ["84370", "84401", "84501"]
 
@@ -29,3 +33,15 @@ jobs:
           STATION_ID: ${{ matrix.station }}
         run: |
           python scripts/generate_test.py
+
+      - name: Upload forecast artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pred_${{ matrix.station }}
+          path: data/pred_${{ matrix.station }}.csv
+
+      - name: Upload test artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: test_${{ matrix.station }}
+          path: data/test_${{ matrix.station }}.csv
