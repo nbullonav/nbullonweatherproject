@@ -151,12 +151,7 @@ sarimax_model = sm.tsa.statespace.SARIMAX(
     enforce_invertibility=False
 ).fit(disp=False)
 
-sarimaxhybrid2_train_pred = hybrid2_model.predict(start=y_train.index[0], end=y_train.index[-1], exog=exog_train_sarimax)
-
-start = len(y_train)
-end = len(y_train) + len(y_test) - 1
-
-sarimax_train_pred = sarimax_model.predict(start=y_train.index[0], end=y_train.index[-1], exog=exog_train_sarimax)
+sarima_train_pred = sarimax_model.predict(start=y_train.index[0], end=y_train.index[-1], exog=exog_train_sarimax)
 
 start = len(y_train)
 end = len(y_train) + len(y_test) - 1
