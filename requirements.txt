@@ -5,5 +5,12 @@ datetime
 matplotlib
 utilsforecast
 statsforecast
+statsmodels
 fpppy
 xgboost
+seaborn
+missingno
+random
+os
+math
+sklearn
