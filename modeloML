@@ -332,3 +332,19 @@ resultados.append({
     "RMSE": rmse(true_test_sarimax, hybrid2_test),
     "MAE": mae(true_test_sarimax, hybrid2_test)
 })
+
+dhistoric = y.to_frame("historic").reset_index().rename(columns={"index": "time"})
+dsarimax = sarimax2_future_series.to_frame("sarimax").reset_index().rename(columns={"index": "time"})
+dxgb = xgb_future_series.to_frame("xgb").reset_index().rename(columns={"index": "time"})
+dhybrid = hybrid_future_series.to_frame("hybrid").reset_index().rename(columns={"index": "time"})
+
+df_final = (
+    dhistoric
+    .merge(dsarimax, on="time", how="outer")
+    .merge(dxgb, on="time", how="outer")
+    .merge(dhybrid, on="time", how="outer")
+    .sort_values("time")
+)
+
+csvfilefinal = "data/pred_" + station_id + ".csv"
+df_final.to_csv(csvfilefinal, index=False)
