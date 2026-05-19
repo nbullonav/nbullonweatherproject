@@ -11,4 +11,4 @@ scikit-learn==1.4.2
 
 utilsforecast==0.1.10
 statsforecast==1.7.5
-fpppy==0.1.5
+fpppy
