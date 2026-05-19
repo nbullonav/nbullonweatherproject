@@ -20,28 +20,31 @@ import statsmodels.api as sm
 import statsmodels.api as sm
 import os
 
-station_id = "45405"
+# ================== 1. cargar datos ==================
+station_id = os.environ["STATION_ID"]
 csv_path = f"data/station{station_id}.csv"
 
 df = pd.read_csv(csv_path, parse_dates=["time"])
 df = df.set_index("time").sort_index()
+
+df = df.drop(columns=["NINO12","NINO34"])
 df["log_prcp"] = np.log1p(df["prcp"])
 
 # ================== 2. Lags (OK antes del split) ==================
-for k in [1,2,3,6,12,18,24]:
+for k in [1,2,3,6,12,]:
     df[f"prcp_lag{k}"] = df["log_prcp"].shift(k)
 
 for k in range(1,13):
-    df[f"ANOM_lag{k}"] = df["ANOM"].shift(k)
+    df[f"ANOM34_lag{k}"] = df["NINO34ANOM"].shift(k)
 
-# ================== 3. Dummies de mes ==================
+for k in [1,3]:
+    df[f"ICEN_lag{k}"] = df["ICEN"].shift(k)
+
+# ================== 3. X month_sin y month_cos ================== 
 df["month"] = df.index.month
-df = pd.get_dummies(df, columns=["month"], prefix="month", drop_first=False)
-
-for m in range(1, 13):
-    col = f"month_{m}"
-    if col not in df.columns:
-        df[col] = 0
+#df = pd.get_dummies(df, columns=["month"], prefix="month", drop_first=False)
+df["month_sin"] = np.sin(2 * np.pi * df["month"] / 12)
+df["month_cos"] = np.cos(2 * np.pi * df["month"] / 12)
 
 # ================== 4. Split base ==================
 split_idx = int(len(df) * 0.8)
@@ -52,75 +55,50 @@ def add_rollings_precenso(d):
     d["prcp_roll3"]  = d["log_prcp"].rolling(3).mean()
     d["prcp_roll6"]  = d["log_prcp"].rolling(6).mean()
     d["prcp_roll12"] = d["log_prcp"].rolling(12).mean()
-
     d["prcp_std6"]   = d["log_prcp"].rolling(6).std()
-    d["prcp_std12"]  = d["log_prcp"].rolling(12).std()
-
-    d["prcp_max12"]  = d["log_prcp"].rolling(12).max()
-    d["prcp_min12"]  = d["log_prcp"].rolling(12).min()
-
-    d["enso_roll3"]  = d["ANOM"].rolling(3).mean()
-    d["enso_roll6"]  = d["ANOM"].rolling(6).mean()
-
-def add_rollings_pres(d):
-    d["pres_roll3"]  = d["pres"].rolling(3).mean()
-    d["pres_roll6"]  = d["pres"].rolling(6).mean()
-    d["pres_roll12"] = d["pres"].rolling(12).mean()
-
-    d["pres_std6"]   = d["pres"].rolling(6).std()
-    d["pres_std12"]  = d["pres"].rolling(12).std()
-
-    d["pres_min12"]  = d["pres"].rolling(12).min()
-    d["pres_max12"]  = d["pres"].rolling(12).max()
+    d["enso34_roll3"]  = d["NINO34ANOM"].rolling(3).mean()
+    d["ICEN_roll3"] = d["ICEN"].rolling(3).mean()
 
 add_rollings_precenso(df_train)
 add_rollings_precenso(df_test)
 
 df_train_pres = df_train.copy()
 df_test_pres  = df_test.copy()
-add_rollings_pres(df_train_pres)
-add_rollings_pres(df_test_pres)
 
 # ================== 6. Concatenar ==================
 df_model = pd.concat([df_train, df_test])
-df_model_pres = pd.concat([df_train_pres, df_test_pres])
+
 
 # ================== 7. Definir grupos de columnas ==================
 lag_features = (
-    [f"prcp_lag{k}" for k in [1,2,3,6,12,18,24]] +
-    [f"ANOM_lag{k}" for k in range(1,13)]
+    [f"prcp_lag{k}" for k in [1,2,3,6,12]] +
+    # [f"ANOM12_lag{k}" for k in range(1,13)] +
+    [f"ANOM34_lag{k}" for k in range(1,13)] +
+    [f"ICEN_lag{k}" for k in [1,3]]
 )
 
 rolling_features = [
-    "prcp_roll3", "prcp_roll6", "prcp_roll12","prcp_std6", "prcp_std12",
-    "prcp_max12", "prcp_min12", "enso_roll3", "enso_roll6"
+    "prcp_roll3", "prcp_roll6", "prcp_roll12","prcp_std6", #"prcp_std12",
+    #"enso12_roll3", "enso12_roll6",
+    "enso34_roll3", #"enso34_roll6",
+    "ICEN_roll3"#,"ICEN_roll6"
 ]
 
-rolling_features_pres = [
-    "prcp_roll3", "prcp_roll6", "prcp_roll12","prcp_std6", "prcp_std12",
-    "prcp_max12", "prcp_min12", "enso_roll3", "enso_roll6",
-    "pres_roll3", "pres_roll6", "pres_roll12",
-    "pres_std6", "pres_std12", "pres_min12", "pres_max12"
-]
-
-month_features = [col for col in df.columns if col.startswith("month_")]
+# month_features = [col for col in df.columns if col.startswith("month_")]
+month_features = ["month_sin", "month_cos"]
 
 feature_cols = lag_features + rolling_features + month_features
-feature_cols_pres = lag_features + rolling_features_pres + month_features
 
-exog_sarimax = ["ANOM"]
-exog_sarimax_pres = ["pres","ANOM"]
+exog_sarimax = ["NINO34ANOM","ICEN"]
 
 # ================== 8. Armar df_model limpio (XGB) ==================
-df_model = df_model = df_model[["log_prcp", "ANOM"] + feature_cols].dropna()
-df_model_pres = df_model_pres[["log_prcp", "ANOM", "pres"] + feature_cols_pres].dropna()
+df_model = df_model[["log_prcp", "ICEN","NINO34ANOM"] + feature_cols].dropna()
 
 # agregar nuevo split_idx basado en df_model ya sin NaN
 split_idx = int(len(df_model) * 0.8)
 
 y = df_model["log_prcp"]
 X_xgb      = df_model[feature_cols]
-X_xgb_pres = df_model_pres[feature_cols_pres]
 
 y_train = y.iloc[:split_idx]
 y_test  = y.iloc[split_idx:]
@@ -130,14 +108,10 @@ true_test  = np.expm1(y_test)
 
 X_train = X_xgb.iloc[:split_idx]
 X_test = X_xgb.iloc[split_idx:]
-X_train_pres = X_xgb_pres.iloc[:split_idx]
-X_test_pres = X_xgb_pres.iloc[split_idx:]
 
 # ================== 9. Exógenas para SARIMAX ==================
 exog_train = df_model[exog_sarimax].iloc[:split_idx]   # sarimax 1 var. exógena
 exog_test  = df_model[exog_sarimax].iloc[split_idx:]
-exog_train_pres = df_model_pres[exog_sarimax_pres].iloc[:split_idx]   # sarimax 2 var. exógenas
-exog_test_pres  = df_model_pres[exog_sarimax_pres].iloc[split_idx:]
 
 # ---------------------------------
 # ----- Funciones auxiliares ------
