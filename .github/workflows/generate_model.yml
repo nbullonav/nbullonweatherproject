@@ -28,26 +28,26 @@ jobs:
         run: |
           pip install -r requirements_model.txt
 
-      - name: Run model script (forecast + test)
+      - name: Run model script (forecast + test + enso)
         env:
           STATION_ID: ${{ matrix.station }}
         run: |
           python modeloML.py
 
-      - name: Upload forecast artifact
+      - name: Upload ENSO scenario artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pred_${{ matrix.station }}_{{scen_name}}
-          path: data/pred_${{ matrix.station }}_{{scen_name}}.csv
+          name: enso_${{ matrix.station }}
+          path: data/pred_${{ matrix.station }}_*.csv
 
-      - name: Upload test artifact
+      - name: Upload Model comparison artifact
         uses: actions/upload-artifact@v4
         with:
-          name: test_${{ matrix.station }}
+          name: pred_${{ matrix.station }}
           path: data/pred_${{ matrix.station }}.csv
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
         with:
           name: test_${{ matrix.station }}
-          path: data/testsets_${{ matrix.station }}.csv
+          path: data/test_metrics/testsets_${{ matrix.station }}.csv
