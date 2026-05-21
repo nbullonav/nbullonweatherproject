@@ -34,14 +34,6 @@ jobs:
         run: |
           python modeloML.py
 
-      - name: move csv to data folder
-        run: |
-          mkdir -p data
-          mkdir -p data/test_metrics
-          mv pred_${{ matrix.station}}.csv data/
-          mv pred_${{ matrix.station }}_*.csv data/
-          mv testsets_${{ matrix.station}}.csv data/test_metrics
-
       - name: Upload ENSO scenario artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -64,7 +56,7 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-          git add data/ data/test_metrics/
+          git add data/
           git commit -m "Update csv for station ${{ matrix.station}}" || true
           git pull --rebase origin generate_model
           git push
