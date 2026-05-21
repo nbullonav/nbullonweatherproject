@@ -37,7 +37,7 @@ jobs:
       - name: Upload forecast artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pred_${{ matrix.station }}
+          name: pred_${{ matrix.station }}_{{scen_name}}
           path: data/pred_${{ matrix.station }}_{{scen_name}}.csv
 
       - name: Upload test artifact
