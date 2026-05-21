@@ -117,6 +117,12 @@ def rmse(y_true, y_pred):
 def mae(y_true, y_pred):
     return mean_absolute_error(y_true, y_pred)
 
+## la version del nb con correlaciones y heatmap, se escogen 14 columnas:
+columnas_pa_xgb = ['NINO34ANOM','ICEN','ICEN_lag1','ICEN_roll3',
+                     'prcp_lag1','prcp_lag3','prcp_lag6','prcp_lag12',
+                     'prcp_roll3', 'prcp_roll6',
+                     'ANOM34_lag1', 'ANOM34_lag6','enso34_roll3',
+                     'month_sin', 'month_cos']
 
 ####### MODELO GANADOR #######
 exog_sarimax = ['NINO34ANOM',"ICEN_lag1"]
