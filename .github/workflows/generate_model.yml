@@ -64,7 +64,7 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-          git add data/
+          git add data/ data/test_metrics/
           git commit -m "Update csv for station ${{ matrix.station}}" || true
           git pull --rebase origin generate_model
           git push
