@@ -191,6 +191,8 @@ with tab2:
         "neutral": f"data/pred_{station_id}_neutral.csv",
         "nino_moderado": f"data/pred_{station_id}_nino_moderado.csv",
         "nino_fuerte": f"data/pred_{station_id}_nino_fuerte.csv",
+        "nino_fuerte2": f"data/pred_{station_id}_nino_fuerte_2.csv",
+        "nino_fuerte3": f"data/pred_{station_id}_nino_fuerte_3.csv",
         "nina_moderada": f"data/pred_{station_id}_nina_moderada.csv"
     }
 
@@ -273,6 +275,8 @@ with tab2:
         "neutral": "green",
         "nino_moderado": "orange",
         "nino_fuerte": "red",
+        "nino_fuerte2": "brown",
+        "nino_fuerte3": "purple",
         "nina_moderada": "blue"
     }
 
