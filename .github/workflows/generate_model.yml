@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: testsets_${{ matrix.station }}
-          path: data/test_metrics/testsets_${{ matrix.station }}.csv
+          path: data/testsets_${{ matrix.station }}.csv
 
       - name: Commit CSV to repo
         run: |
