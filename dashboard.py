@@ -71,8 +71,7 @@ with tab1:
     df_filtered = df[(df["time"] >= start) & (df["time"] <= end)]
 
 
-
-    test_metrics = pd.read_csv(f"data/test_metrics/testsets_{station_id}.csv")
+    test_metrics = pd.read_csv(f"data/testsets_{station_id}.csv")
     test_metrics["time"] = pd.to_datetime(test_metrics["time"])
     test_metrics.set_index("time", inplace=True)
 
