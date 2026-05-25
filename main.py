@@ -79,7 +79,7 @@ datecheck = datetime.strptime(currentdate, "%Y-%m-%d") - pd.DateOffset(months=3)
 datecheck = datecheck.strftime("%Y-%m-%d")
 
 critical_cols = [
-    "temp","tmin","tmax","txmn","txmx","prcp","pres",
+    "temp","tmin","tmax","prcp","pres",
     "name","country","region","latitude","longitude"
 ]
 critical_cols_2 = ["ICEN"]
