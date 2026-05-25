@@ -18,7 +18,7 @@ data['id'] = str(station_id)
 data.reset_index(inplace=True)
 
 finaldata = pd.merge(data,df_metadata, how='left', on='id')
-finaldata.drop(columns=['id','elevation','tsun','identifiers','timezone'], inplace=True)
+finaldata.drop(columns=['id','txmn','txmx','elevation','tsun','identifiers','timezone'], inplace=True)
 finaldata.set_index('time', inplace=True)
 
 ## 1.2. Captura de datos - Dataset 2 (ONI data de NOAA.gov)
